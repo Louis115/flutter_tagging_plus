@@ -150,7 +150,7 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
     this.enableImmediateSuggestion = false,
     this.onChanged,
     this.additionCallback,
-    this.enableImmediateSuggestion = false,
+  
     this.errorBuilder,
     this.loadingBuilder,
     this.emptyBuilder,
