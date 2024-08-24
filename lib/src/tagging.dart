@@ -146,6 +146,7 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
     required this.configureChip,
     required this.configureSuggestion,
     this.marginTop,
+    this.typeAreaVisibility,
     this.enableImmediateSuggestion = false,
     this.onChanged,
     this.additionCallback,
