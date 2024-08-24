@@ -37,9 +37,12 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
   /// ```
   final FutureOr<List<T>> Function(String) findSuggestions;
 
-  /// The vertical spacing between the text-field and the chip
+  /// The vertical spacing between the text field and the chip
   /// Zero by default
   final double? marginTop;
+
+   //Boolean to control visibility of the type area
+  final bool typeAreaVisibility;
 
   /// The configuration of [Chip]s that are displayed for selected tags.
   final ChipConfiguration Function(T) configureChip;
@@ -143,6 +146,7 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
     required this.configureChip,
     required this.configureSuggestion,
     this.marginTop,
+    this.enableImmediateSuggestion = false,
     this.onChanged,
     this.additionCallback,
     this.enableImmediateSuggestion = false,
@@ -193,6 +197,7 @@ class _FlutterTaggingState<T extends Taggable>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
+      if (widget.typeAreaVisibility)
         TypeAheadField<T>(
           getImmediateSuggestions: widget.enableImmediateSuggestion,
           debounceDuration: widget.debounceDuration,
