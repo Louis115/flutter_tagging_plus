@@ -278,7 +278,7 @@ class _FlutterTaggingState<T extends Taggable>
                     setState(() {});
                     widget.onChanged?.call();
                     _textController.clear();
-                    _focusNode.unfocus();
+                    // _focusNode.unfocus();
                   },
                   child: Builder(
                     builder: (context) {
@@ -300,6 +300,7 @@ class _FlutterTaggingState<T extends Taggable>
                 widget.onChanged?.call();
                 _textController.clear();
               }
+                     setState(() {});
               _focusNode.requestFocus();
             },
           ),
