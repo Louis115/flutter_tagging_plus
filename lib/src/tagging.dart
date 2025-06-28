@@ -334,6 +334,7 @@ class _FlutterTaggingState<T extends Taggable>
                   widget.initialItems.remove(item);
                   setState(() {});
                   widget.onChanged?.call();
+                  _focusNode.requestFocus();
                 },
               );
             }),
