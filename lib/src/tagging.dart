@@ -300,7 +300,10 @@ class _FlutterTaggingState<T extends Taggable>
                 widget.onChanged?.call();
                 _textController.clear();
               }
-              FocusScope.of(context).requestFocus(_focusNode);
+                _textController.clear();              // clear the query
+                _focusNode.unfocus();
+                await Future.delayed(Duration(milliseconds: 1));     // one event-loop tick
+                FocusScope.of(context).requestFocus(_focusNode);     // opens overlay again
             },
           ),
         SizedBox(height: widget.marginTop),
