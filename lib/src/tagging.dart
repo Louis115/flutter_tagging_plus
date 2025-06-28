@@ -278,7 +278,8 @@ class _FlutterTaggingState<T extends Taggable>
                     setState(() {});
                     widget.onChanged?.call();
                     _textController.clear();
-                    // _focusNode.unfocus();
+                                     debugPrint("onTap check");
+                    _focusNode.requestFocus();
                   },
                   child: Builder(
                     builder: (context) {
@@ -300,6 +301,8 @@ class _FlutterTaggingState<T extends Taggable>
                 widget.onChanged?.call();
                 _textController.clear();
               }
+                debugPrint("onSuggestionSelected");
+              _focusNode.requestFocus();
             },
           ),
         SizedBox(height: widget.marginTop),
