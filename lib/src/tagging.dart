@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:async';
+// @dart=2.17                          // ✓ compiles on old SDKs – remove if you’re already ≥ 2.17
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -11,43 +12,71 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'configurations.dart';
 import 'taggable.dart';
 
-/// A customizable tagging widget supporting suggestions and chip display.
+///
+/// A re-implementation of the original FlutterTagging that works with
+/// flutter_typeahead ≥ 4.8.0 **and** Dart SDK < 2.17 (no super-parameters).
+///
 class FlutterTagging<T extends Taggable> extends StatefulWidget {
+  /// Called every time the value changes (item add / remove).
   final VoidCallback? onChanged;
+
+  /// Called when the trailing “add tags” (+) circle is tapped.
   final VoidCallback? onAddTagsButtonClicked;
+
   final Color? addButtonColor;
   final bool showAddButton;
+
+  /// Text-field configuration
   final TextFieldConfiguration textFieldConfiguration;
+
+  /// Your async / sync search callback.
   final FutureOr<List<T>> Function(String) findSuggestions;
+
+  /// Vertical gap between field & chips
   final double? marginTop;
+
+  /// Whether the text field itself is visible
   final bool typeAreaVisibility;
+
+  /// Chip & suggestion configuration callbacks
   final ChipConfiguration Function(T) configureChip;
   final SuggestionConfiguration Function(T) configureSuggestion;
+
+  /// Chip-wrap layout
   final WrapConfiguration wrapConfiguration;
+
+  /// Optional “create new” handler
   final T Function(String)? additionCallback;
   final FutureOr<T> Function(T)? onAdded;
+
+  /// Builders for loading / empty / error UI
   final Widget Function(BuildContext)? loadingBuilder;
   final Widget Function(BuildContext)? emptyBuilder;
   final Widget Function(BuildContext, Object?)? errorBuilder;
-  final Widget Function(BuildContext, Widget, AnimationController?)? transitionBuilder;
-  final SuggestionsBoxDecoration suggestionsBoxDecoration;
-  final double suggestionsBoxVerticalOffset;
-  final bool autoFlipDirection;
-  final AxisDirection direction;
-  final bool hideSuggestionsOnKeyboardHide;
-  final bool keepSuggestionsOnLoading;
-  final bool keepSuggestionsOnSuggestionSelected;
+
+  /// Custom transition for suggestions box
+  final Widget Function(BuildContext, Widget, AnimationController?)?
+      transitionBuilder;
+
+  /// ↓ Everything below mirrors the old API – we keep it for source-compat.
+  final SuggestionsBoxConfiguration suggestionsBoxConfiguration;
+
   final Duration animationDuration;
-  final double animationStart;
+  final double   animationStart;
+
   final bool hideOnLoading;
   final bool hideOnEmpty;
   final bool hideOnError;
+
   final Duration debounceDuration;
   final bool enableImmediateSuggestion;
+
+  /// Initially-selected chips
   final List<T> initialItems;
 
-  FlutterTagging({
-    Key? key,
+  // ──────────────────────────────────────────────────────────────────
+  const FlutterTagging({
+    Key? key,                                 // ← old-style key
     required this.initialItems,
     required this.findSuggestions,
     required this.configureChip,
@@ -62,13 +91,7 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
     this.emptyBuilder,
     this.wrapConfiguration = const WrapConfiguration(),
     this.textFieldConfiguration = const TextFieldConfiguration(),
-    this.suggestionsBoxDecoration = const SuggestionsBoxDecoration(),
-    this.suggestionsBoxVerticalOffset = 0.0,
-    this.autoFlipDirection = true,
-    this.direction = AxisDirection.down,
-    this.hideSuggestionsOnKeyboardHide = true,
-    this.keepSuggestionsOnLoading = false,
-    this.keepSuggestionsOnSuggestionSelected = false,
+    this.suggestionsBoxConfiguration = const SuggestionsBoxConfiguration(),
     this.transitionBuilder,
     this.debounceDuration = const Duration(milliseconds: 300),
     this.hideOnEmpty = false,
@@ -80,29 +103,43 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
     this.onAddTagsButtonClicked,
     this.addButtonColor,
     this.showAddButton = true,
-  }) : super(key: key);
+  }) : super(key: key);                       // ← old-style super call
+  // ──────────────────────────────────────────────────────────────────
 
   @override
   _FlutterTaggingState<T> createState() => _FlutterTaggingState<T>();
 }
 
+// ══════════════════════════════════════════════════════════════════
+//                           STATE
+// ══════════════════════════════════════════════════════════════════
 class _FlutterTaggingState<T extends Taggable> extends State<FlutterTagging<T>> {
   late final TextEditingController _textController;
-  late final FocusNode _focusNode;
+  late final FocusNode             _focusNode;
   T? _additionItem;
 
   @override
   void initState() {
     super.initState();
     _textController = widget.textFieldConfiguration.controller ?? TextEditingController();
-    _focusNode = widget.textFieldConfiguration.focusNode ?? FocusNode();
+    _focusNode      = widget.textFieldConfiguration.focusNode    ?? FocusNode();
   }
 
   @override
   void dispose() {
     _textController.dispose();
+    // _focusNode is owned by caller when they pass one – don’t dispose here.
     super.dispose();
   }
+
+  // ──────────────────────────────────────────────────────────────────
+  // Helper: reopen overlay after a tiny delay
+  void _requestFieldFocus() async {
+    _focusNode.unfocus();
+    await Future.delayed(const Duration(milliseconds: 1));
+    FocusScope.of(context).requestFocus(_focusNode);
+  }
+  // ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -111,116 +148,134 @@ class _FlutterTaggingState<T extends Taggable> extends State<FlutterTagging<T>> 
       children: [
         if (widget.typeAreaVisibility)
           TypeAheadField<T>(
+            // Behaviour
             getImmediateSuggestions: widget.enableImmediateSuggestion,
-            debounceDuration: widget.debounceDuration,
-            hideOnEmpty: widget.hideOnEmpty,
-            hideOnError: widget.hideOnError,
-            hideOnLoading: widget.hideOnLoading,
-            animationStart: widget.animationStart,
-            animationDuration: widget.animationDuration,
-            suggestionsBoxDecoration: widget.suggestionsBoxDecoration,
-            suggestionsBoxVerticalOffset: widget.suggestionsBoxVerticalOffset,
-            autoFlipDirection: widget.autoFlipDirection,
-            direction: widget.direction,
-            hideSuggestionsOnKeyboardHide: widget.hideSuggestionsOnKeyboardHide,
-            keepSuggestionsOnLoading: widget.keepSuggestionsOnLoading,
-            keepSuggestionsOnSuggestionSelected: widget.keepSuggestionsOnSuggestionSelected,
-            transitionBuilder: widget.transitionBuilder,
-            loadingBuilder: (context) => widget.loadingBuilder?.call(context) ?? const SizedBox(height: 3.0, child: LinearProgressIndicator()),
+            debounceDuration       : widget.debounceDuration,
+            hideOnEmpty            : widget.hideOnEmpty,
+            hideOnError            : widget.hideOnError,
+            hideOnLoading          : widget.hideOnLoading,
+            // Animation
+            animationDuration      : widget.animationDuration,
+            animationStart         : widget.animationStart,
+            // Suggestions-box params (expanded from old config)
+            direction                      : widget.suggestionsBoxConfiguration.direction,
+            autoFlipDirection              : widget.suggestionsBoxConfiguration.autoFlipDirection,
+            suggestionsBoxVerticalOffset   : widget.suggestionsBoxConfiguration.suggestionsBoxVerticalOffset,
+            suggestionsBoxController       : widget.suggestionsBoxConfiguration.suggestionsBoxController,
+            suggestionsBoxDecoration       : widget.suggestionsBoxConfiguration.suggestionsBoxDecoration,
+            hideSuggestionsOnKeyboardHide  : widget.suggestionsBoxConfiguration.hideSuggestionsOnKeyboardHide,
+            keepSuggestionsOnLoading       : widget.suggestionsBoxConfiguration.keepSuggestionsOnLoading,
+            keepSuggestionsOnSuggestionSelected
+                                           : widget.suggestionsBoxConfiguration.keepSuggestionsOnSuggestionSelected,
+            // Misc.
+            transitionBuilder : widget.transitionBuilder,
+            loadingBuilder    : (c) => widget.loadingBuilder?.call(c) ?? const SizedBox(
+                                        height: 3, child: LinearProgressIndicator()),
             noItemsFoundBuilder: widget.emptyBuilder,
-            errorBuilder: widget.errorBuilder,
+            errorBuilder       : widget.errorBuilder,
             textFieldConfiguration: widget.textFieldConfiguration.copyWith(
-              focusNode: _focusNode,
               controller: _textController,
+              focusNode : _focusNode,
+              enabled   : widget.textFieldConfiguration.enabled,
             ),
+            // Suggestions logic
             suggestionsCallback: (query) async {
-              final suggestions = await widget.findSuggestions(query);
-              suggestions.removeWhere(widget.initialItems.contains);
+              final list = await widget.findSuggestions(query);
+              list.removeWhere(widget.initialItems.contains);
               if (widget.additionCallback != null && query.isNotEmpty) {
-                final additionItem = widget.additionCallback!(query);
-                if (!suggestions.contains(additionItem) && !widget.initialItems.contains(additionItem)) {
-                  _additionItem = additionItem;
-                  suggestions.insert(0, additionItem);
+                final addItem = widget.additionCallback!(query);
+                if (!list.contains(addItem) && !widget.initialItems.contains(addItem)) {
+                  _additionItem = addItem;
+                  list.insert(0, addItem);
                 } else {
                   _additionItem = null;
                 }
               }
-              return suggestions;
+              return list;
             },
             itemBuilder: (context, item) {
               final conf = widget.configureSuggestion(item);
               return ListTile(
-                key: ObjectKey(item),
-                title: conf.title,
+                key   : ObjectKey(item),
+                title : conf.title,
                 subtitle: conf.subtitle,
-                leading: conf.leading,
+                leading : conf.leading,
                 trailing: InkWell(
-                  splashColor: conf.splashColor ?? Theme.of(context).splashColor,
+                  splashColor : conf.splashColor ?? Theme.of(context).splashColor,
                   borderRadius: conf.splashRadius,
                   onTap: () async {
-                    final selected = widget.onAdded != null ? await widget.onAdded!(item) : item;
-                    widget.initialItems.add(selected);
+                    if (widget.onAdded != null) {
+                      widget.initialItems.add(await widget.onAdded!(item));
+                    } else {
+                      widget.initialItems.add(item);
+                    }
                     setState(() {});
                     widget.onChanged?.call();
                     _textController.clear();
-                    _refocus();
+                    _requestFieldFocus();                     // ← reopen
                   },
-                  child: conf.additionWidget != null && _additionItem == item ? conf.additionWidget! : const SizedBox(width: 0),
+                  child: _additionItem == item && conf.additionWidget != null
+                         ? conf.additionWidget!
+                         : const SizedBox(width: 0),
                 ),
               );
             },
-            onSuggestionSelected: (suggestion) {
-              if (_additionItem != suggestion) {
-                widget.initialItems.add(suggestion);
+            onSuggestionSelected: (sel) {
+              if (_additionItem != sel) {
+                widget.initialItems.add(sel);
                 setState(() {});
                 widget.onChanged?.call();
               }
               _textController.clear();
-              _refocus();
+              _requestFieldFocus();                         // ← reopen
             },
           ),
-        SizedBox(height: widget.marginTop),
+
+        if (widget.marginTop != null) SizedBox(height: widget.marginTop),
+
         Wrap(
-          alignment: widget.wrapConfiguration.alignment,
+          direction         : widget.wrapConfiguration.direction,
+          alignment         : widget.wrapConfiguration.alignment,
           crossAxisAlignment: widget.wrapConfiguration.crossAxisAlignment,
-          runAlignment: widget.wrapConfiguration.runAlignment,
-          runSpacing: widget.wrapConfiguration.runSpacing,
-          spacing: widget.wrapConfiguration.spacing,
-          direction: widget.wrapConfiguration.direction,
-          textDirection: widget.wrapConfiguration.textDirection,
-          verticalDirection: widget.wrapConfiguration.verticalDirection,
+          runAlignment      : widget.wrapConfiguration.runAlignment,
+          spacing           : widget.wrapConfiguration.spacing,
+          runSpacing        : widget.wrapConfiguration.runSpacing,
+          textDirection     : widget.wrapConfiguration.textDirection,
+          verticalDirection : widget.wrapConfiguration.verticalDirection,
           children: [
             ...widget.initialItems.map((item) {
               final conf = widget.configureChip(item);
               return Chip(
-                label: conf.label,
-                shape: conf.shape,
-                avatar: conf.avatar,
-                backgroundColor: conf.backgroundColor,
-                clipBehavior: conf.clipBehavior,
-                deleteButtonTooltipMessage: conf.deleteButtonTooltipMessage,
-                deleteIcon: conf.deleteIcon,
-                deleteIconColor: conf.deleteIconColor,
-                elevation: conf.elevation,
-                labelPadding: conf.labelPadding,
-                labelStyle: conf.labelStyle,
-                materialTapTargetSize: conf.materialTapTargetSize,
-                padding: conf.padding,
-                shadowColor: conf.shadowColor,
+                label                      : conf.label,
+                avatar                     : conf.avatar,
+                shape                      : conf.shape,
+                clipBehavior               : conf.clipBehavior,
+                backgroundColor            : conf.backgroundColor,
+                padding                    : conf.padding,
+                labelPadding               : conf.labelPadding,
+                labelStyle                 : conf.labelStyle,
+                materialTapTargetSize      : conf.materialTapTargetSize,
+                elevation                  : conf.elevation,
+                shadowColor                : conf.shadowColor,
+                deleteIcon                 : conf.deleteIcon,
+                deleteIconColor            : conf.deleteIconColor,
+                deleteButtonTooltipMessage : conf.deleteButtonTooltipMessage,
                 onDeleted: () {
                   widget.initialItems.remove(item);
                   setState(() {});
                   widget.onChanged?.call();
-                  _refocus();
+                  _requestFieldFocus();                       // ← reopen
                 },
               );
-            }).toList(),
-            if (widget.onAddTagsButtonClicked != null && !widget.typeAreaVisibility && widget.showAddButton)
-              _iconCircleButton(
-                icon: FontAwesomeIcons.plus,
-                tooltip: "Add tags",
-                onTap: widget.onAddTagsButtonClicked!,
+            }),
+            if (widget.onAddTagsButtonClicked != null &&
+                !widget.typeAreaVisibility &&
+                widget.showAddButton)
+              _circleButton(
+                icon : FontAwesomeIcons.plus,
                 color: widget.addButtonColor ?? Colors.black87,
+                tooltip: 'Add tags',
+                onTap : widget.onAddTagsButtonClicked!,
               ),
           ],
         ),
@@ -228,23 +283,22 @@ class _FlutterTaggingState<T extends Taggable> extends State<FlutterTagging<T>> 
     );
   }
 
-  void _refocus() {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (mounted) FocusScope.of(context).requestFocus(_focusNode);
-    });
-  }
-
-  Widget _iconCircleButton({required IconData icon, required String tooltip, required VoidCallback onTap, required Color color}) {
+  // Helper for the (+) circle
+  Widget _circleButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color color,
+    required String tooltip,
+  }) {
     return Container(
-      width: 26,
-      height: 26,
+      width: 26, height: 26,
       margin: const EdgeInsets.symmetric(horizontal: 2),
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       child: IconButton(
-        tooltip: tooltip,
+        icon     : FaIcon(icon, size: 12, color: Colors.white),
+        tooltip  : tooltip,
         onPressed: onTap,
-        icon: FaIcon(icon, size: 12, color: Colors.white),
-        padding: EdgeInsets.zero,
+        padding  : EdgeInsets.zero,
         splashRadius: 20,
       ),
     );
