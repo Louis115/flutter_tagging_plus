@@ -19,6 +19,7 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
 
   /// Called when tag button is clicked.
   final VoidCallback? onAddTagsButtonClicked;
+  final Color? addButtonColor;
 
   /// The configuration of the [TextField] that the [FlutterTagging] widget displays.
   final TextFieldConfiguration textFieldConfiguration;
@@ -169,6 +170,7 @@ class FlutterTagging<T extends Taggable> extends StatefulWidget {
     this.animationStart = 0.25,
     this.onAdded,
     this.onAddTagsButtonClicked,
+    this.addButtonColor,
   });
 
   @override
@@ -333,11 +335,12 @@ class _FlutterTaggingState<T extends Taggable>
                 },
               );
             }),
-            if (widget.onAddTagsButtonClicked != null)
+            if (widget.onAddTagsButtonClicked != null && !widget.typeAreaVisibility)
               _iconCircleButton(
-                icon: FontAwesomeIcons.list,
-                tooltip: "Show all tags",
+                icon: FontAwesomeIcons.plus,
+                tooltip: "Add tags",
                 onTap: widget.onAddTagsButtonClicked!,
+                color: widget.addButtonColor ?? Colors.black87,
               ),
           ],
         ),
@@ -349,12 +352,13 @@ class _FlutterTaggingState<T extends Taggable>
     required IconData icon,
     required String tooltip,
     required VoidCallback onTap,
+    required Color color,
   }) {
     return Container(
       width: 26,
       height: 26,
       margin: const EdgeInsets.symmetric(horizontal: 2),
-      decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       child: IconButton(
         tooltip: tooltip,
         onPressed: onTap,
