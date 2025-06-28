@@ -239,18 +239,9 @@ class _FlutterTaggingState<T extends Taggable>
                 ),
             noItemsFoundBuilder: widget.emptyBuilder,
             textFieldConfiguration: TextFieldConfiguration(
-    controller: _textController,
     focusNode: _focusNode,
-    enabled: _config.enabled,
-    style: _config.style,
-    decoration: _config.decoration,
-    autofocus: _config.autofocus,
-    autocorrect: _config.autocorrect,
-    enableSuggestions: _config.enableSuggestions,
-    textCapitalization: _config.textCapitalization,
-    keyboardType: _config.keyboardType,
-    textInputAction: _config.textInputAction,
-    inputFormatters: _config.inputFormatters,
+              controller: _textController,
+              enabled: widget.textFieldConfiguration.enabled,
   ),
             suggestionsCallback: (query) async {
               final suggestions = await widget.findSuggestions(query);
