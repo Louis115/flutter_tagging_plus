@@ -231,18 +231,13 @@ class _FlutterTaggingState<T extends Taggable>
                 widget.suggestionsBoxConfiguration.suggestionsBoxVerticalOffset,
             errorBuilder: widget.errorBuilder,
             transitionBuilder: widget.transitionBuilder,
-            loadingBuilder: (context) =>
-                widget.loadingBuilder?.call(context) ??
-                SizedBox(
-                  height: 3.0,
-                  child: LinearProgressIndicator(),
-                ),
+            loadingBuilder: (_) => SizedBox.shrink(),
             noItemsFoundBuilder: widget.emptyBuilder,
-            textFieldConfiguration: TextFieldConfiguration(
-    focusNode: _focusNode,
+            textFieldConfiguration: widget.textFieldConfiguration.copyWith(
+              focusNode: _focusNode,
               controller: _textController,
               enabled: widget.textFieldConfiguration.enabled,
-  ),
+            ),
             suggestionsCallback: (query) async {
               final suggestions = await widget.findSuggestions(query);
               suggestions.removeWhere(widget.initialItems.contains);
